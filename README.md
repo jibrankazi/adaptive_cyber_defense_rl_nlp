@@ -1,4 +1,19 @@
 ## Research Summary (PhD Portfolio)
+
+## Research Summary (PhD Portfolio)
+**Hypothesis:** Integrating language-derived threat signals with an RL defense >
+**Reproducibility:** `make smoke` runs a minimal pipeline on CPU and produces `>
+**Configs:** `configs/dqn.yaml` (seeded).
+
+### Quickstart
+```bash
+python -m venv .venv
+source .venv/Scripts/activate   # Windows Git Bash
+python -m pip install -r requirements.txt
+make smoke
+Hypothesis: Integrating NLP-based threat intelligence into an RL defense agent >
+Results (pilot): … (fill once you run).
+Reproducibility: configs in `configs/`, `make all` to reproduce.
 Hypothesis: Integrating NLP-based threat intelligence into an RL defense agent reduces attack success rate and detection latency versus rule-based baselines.
 Results (pilot): … (fill once you run).
 Reproducibility: configs in `configs/`, `make all` to reproduce.
@@ -35,6 +50,32 @@ We evaluate RL learning curves (episode reward over training iterations), confus
 
     # Evaluate system
     python src/evaluate.py --rl_model models/dqn.pkl --nlp_model models/bert_classifier.pkl
+
+---
+
+## 3) Add CI so profs see a green check
+
+```bash
+mkdir -p .github/workflows
+nano .github/workflows/ci-adaptive.yml
+name: CI - Adaptive Cyber Defense (smoke)
+on: [push, pull_request]
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt
+      - run: python src/train_nlp.py --epochs 1
+      - run: python src/train_rl.py --config configs/dqn.yaml
+      - run: python src/evaluate.py
+      - name: Show report
+        run: type results\report.json
+
 
 ## Citation
 

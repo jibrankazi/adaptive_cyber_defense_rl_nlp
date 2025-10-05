@@ -1,0 +1,9 @@
+# DQN experiment configuration
+env_name: CyberDefenseSim-v1
+episodes: 1000
+gamma: 0.99
+learning_rate: 0.0005
+epsilon_start: 1.0
+epsilon_end: 0.05
+epsilon_decay: 0.995
+seed: 1337
