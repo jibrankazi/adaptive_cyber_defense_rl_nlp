@@ -1,6 +1,4 @@
 ## Research Summary (PhD Portfolio)
-
-## Research Summary (PhD Portfolio)
 **Hypothesis:** Integrating language-derived threat signals with an RL defense >
 **Reproducibility:** `make smoke` runs a minimal pipeline on CPU and produces `>
 **Configs:** `configs/dqn.yaml` (seeded).
