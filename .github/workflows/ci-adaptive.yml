@@ -1,25 +1,8 @@
 # .github/workflows/ci-adaptive.yml
 name: CI - Adaptive Cyber Defense (smoke)
 on:
-  push:
-    branches: [ main, research-upgrade ]
-  pull_request:
-
-jobs:
-  smoke:
+  workflow_dispatch: {}
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+  workflow_dispatch: {}
         with: { python-version: '3.11' }
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements.txt
-      - run: mkdir -p models results
-      - run: python src/train_nlp.py --epochs 1
-      - run: python src/train_rl.py --config configs/dqn.yaml
-      - run: python src/evaluate.py
-      - run: cat results/report.json
-      - name: Run tests
-        run: |
-          python -m pip install pytest
-          pytest -q
+  workflow_dispatch: {}

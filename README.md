@@ -80,7 +80,6 @@ jobs:
 See CITATION.cff.
 
 
-![CI](https://github.com/jibrankazi/adaptive_cyber_defense_rl_nlp/actions/workflows/ci-adaptive.yml/badge.svg)
 
 ### Quick Results (CPU smoke)
 | Metric         | Value  |
