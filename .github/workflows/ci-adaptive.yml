@@ -1,29 +1,20 @@
-# .github/workflows/ci-adaptive.yml
 name: CI - Adaptive Cyber Defense (smoke)
 on: [push, pull_request]
 jobs:
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
-      - name: Install deps
-        run: python -m pip install -r requirements.txt
-      - name: Prep directories
-        run: mkdir -p models results
-      - name: Sanity listing
-        run: |
-          python --version
-          ls -R
-      - name: Train NLP (stub)
-        run: python src/train_nlp.py --epochs 1
-      - name: Train RL (stub)
-        run: python src/train_rl.py --config configs/dqn.yaml
-      - name: Evaluate
-        run: python src/evaluate.py
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt
+      - run: python src/train_nlp.py --epochs 1
+      - run: python src/train_rl.py --config configs/dqn.yaml
+      - run: python src/evaluate.py
       - name: Show report
-        run: cat results/report.json
+        run: type results\report.json
+name: CI - Adaptive Cyber Defense
+on: [push, pull_request]
+jobs:
