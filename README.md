@@ -1,3 +1,7 @@
+## Research Summary (PhD Portfolio)
+Hypothesis: Integrating NLP-based threat intelligence into an RL defense agent reduces attack success rate and detection latency versus rule-based baselines.
+Results (pilot): … (fill once you run).
+Reproducibility: configs in `configs/`, `make all` to reproduce.
 # Adaptive Cyber Defense RL NLP
 
 ## Abstract
