@@ -1,8 +1,0 @@
-# .github/workflows/ci-adaptive.yml
-name: CI - Adaptive Cyber Defense (smoke)
-on:
-  workflow_dispatch: {}
-    runs-on: ubuntu-latest
-  workflow_dispatch: {}
-        with: { python-version: '3.11' }
-  workflow_dispatch: {}
