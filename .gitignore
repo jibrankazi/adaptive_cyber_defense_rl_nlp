@@ -23,3 +23,11 @@ results/
 # Ignore Python virtual environments
 venv/
 .env
+.venv/
+__pycache__/
+models/
+results/
+.venv/
+__pycache__/
+models/
+results/
