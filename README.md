@@ -1,7 +1,6 @@
 
 (https://github.com/jibrankazi/adaptive_cyber_defense_rl_nlp/actions/workflows/ci-adaptive.yml/badge.svg)
 ## Research Summary (PhD Portfolio)
-=======
 Adaptive Cyber Defense RL + NLP
 
 
