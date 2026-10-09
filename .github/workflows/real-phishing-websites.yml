@@ -1,0 +1,92 @@
+name: Genuine UCI 2012 phishing websites source-to-tested cyber risk classifiers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/real_phishing_websites.py"
+      - "tests/test_real_phishing_websites.py"
+      - ".github/workflows/real-phishing-websites.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  original-phishing-websites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install original UCI source, machine learning and test dependencies
+        run: python -m pip install "numpy<3" pandas scikit-learn ucimlrepo joblib pytest
+      - name: Validate website feature vector grouping and classification code
+        run: python -m pytest -q tests/test_real_phishing_websites.py
+      - name: Retrieve UCI dataset 327 of genuine phishing/legitimate websites and fit classifiers
+        run: python -u -m src.real_phishing_websites
+      - name: Verify original publisher labels and independently recompute every heldout metric
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, math
+          import numpy as np
+          import pandas as pd
+          from sklearn.metrics import (
+              average_precision_score, roc_auc_score,
+              accuracy_score, balanced_accuracy_score, confusion_matrix,
+              precision_score, recall_score, f1_score,
+          )
+          path = Path("results/real_uci_phishing")
+          result = json.loads((path/"verified_results.json").read_text())
+          original = pd.read_csv(path/"observed_uci_website_heldout_scores.csv")
+          split = result["train_validation_test"]
+          assert result["source_catalog"]=="https://archive.ics.uci.edu/dataset/327/phishing+websites"
+          assert result["publisher_dataset_id"] == 327
+          assert result["original_rows"]==11055
+          assert result["original_phishing_sites"]==4898
+          assert result["original_legitimate_sites"]==6157
+          assert result["feature_count"]==30 and len(result["feature_columns"])==30
+          assert result["source_has_raw_url_strings"] is False
+          assert len(result["original_decoded_ordered_feature_and_label_values_sha256"])==64
+          assert split["train_rows"] + split["validation_rows"] + split["test_rows"] == result["original_rows"]
+          assert split["feature_pattern_overlap_across_partitions"] == 0
+          assert len(original) == split["test_rows"]
+          assert original.original_publisher_row_position.is_unique
+          assert original.actual_original_phishing_label.sum() == split["test_phishing_sites"]
+          assert original.original_feature_vector_group_hash.notna().all()
+          assert set(result["model_evaluations"]) == {
+              "original_prevalence_baseline","scaled_logistic_regression","random_forest"
+          }
+          assert result["selected_by_validation_only"] in {"scaled_logistic_regression","random_forest"}
+          true = original["actual_original_phishing_label"].to_numpy()
+          for model, record in result["model_evaluations"].items():
+              scored = original["phishing_probability_"+model].to_numpy()
+              assert np.isfinite(scored).all() and np.all((0 <= scored) & (scored <= 1))
+              reported = record["untouched_test_metrics"]
+              pred = (scored >= .5).astype(int)
+              actual_metrics = {
+                  "accuracy": accuracy_score(true,pred),
+                  "balanced_accuracy": balanced_accuracy_score(true,pred),
+                  "precision_phishing": precision_score(true,pred,zero_division=0),
+                  "recall_phishing": recall_score(true,pred,zero_division=0),
+                  "f1_phishing": f1_score(true,pred,zero_division=0),
+                  "average_precision": average_precision_score(true,scored),
+                  "roc_auc": roc_auc_score(true,scored),
+              }
+              for metric, value in actual_metrics.items():
+                  assert math.isclose(float(value),reported[metric],rel_tol=1e-12,abs_tol=1e-12)
+              assert confusion_matrix(true,pred,labels=[0,1]).tolist() == reported["confusion_matrix_actual_0_1"]
+              assert sum(map(sum,reported["confusion_matrix_actual_0_1"]))==len(original)
+              assert 0 <= record["model_selection_validation_average_precision"] <= 1
+          assert len(json.loads((path/"ordered_original_feature_columns.json").read_text()))==30
+          assert (path/"selected_uci_phishing_model.joblib").stat().st_size>30000
+          print("PASS: genuine UCI 11055 phishing/legitimate websites; 30 published source features; group-disjoint splits and independent original heldout metrics")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: original-uci-2012-phishing-websites-true-labels-and-trained-model
+          path: results/real_uci_phishing/
+          if-no-files-found: error
