@@ -6,6 +6,7 @@ on:
     paths:
       - "src/real_sms_defense.py"
       - "tests/test_real_sms_defense.py"
+      - "scripts/generate_plot.py"
       - ".github/workflows/real-sms-defense.yml"
   workflow_dispatch:
 
@@ -27,6 +28,8 @@ jobs:
         run: python -m pytest -q tests/test_real_sms_defense.py tests/test_smoke.py
       - name: Download actual UCI SMS corpus, fit NLP, select validation policy and evaluate untouched test
         run: python -u -m src.real_sms_defense
+      - name: Generate actual observed-label policy chart, without fake attack histories
+        run: python scripts/generate_plot.py
       - name: Independently recalculate saved real heldout scores and verify model
         run: |
           python - <<'PY'
@@ -43,6 +46,9 @@ jobs:
           part = results["split"]
           assert results["data_source"] == "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip"
           assert len(results["publisher_zip_bytes_sha256"]) == 64
+          assert results["original_publisher_message_line_count"] == 5574
+          assert results["duplicate_messages_removed_before_split"] == 403
+          assert results["original_publisher_message_line_count"] - results["duplicate_messages_removed_before_split"] == results["deduplicated_original_message_count"]
           assert results["deduplicated_original_message_count"] > 5000
           assert results["deduplicated_original_spam_count"] > 600
           assert part["train"] + part["validation"] + part["test"] == results["deduplicated_original_message_count"]
@@ -73,6 +79,7 @@ jobs:
           assert np.array_equal(observed["validation_selected_review"].to_numpy(),
                                 (prob >= threshold).astype(int))
           assert (root / "heldout_precision_recall.png").read_bytes()[:8] == bytes.fromhex("89504e470d0a1a0a")
+          assert (root / "heldout_assumed_review_costs.png").read_bytes()[:8] == bytes.fromhex("89504e470d0a1a0a")
           assert (root / "uci_sms_review_model.joblib").stat().st_size > 15000
           print("PASSED: actual UCI original-source provenance, original heldout spam labels, independently reconstructed all four triage policies, all real metrics and model/chart artifacts")
           PY
