@@ -209,11 +209,54 @@ def run(output="results/real_uci_phishing"):
     return evaluation
 
 
+def score_preextracted_website_features(input_json, folder="results/real_uci_phishing"):
+    """Classify one already-measured 30-field UCI feature vector.
+
+    This does not visit arbitrary URLs, fetch web pages, validate a domain,
+    or execute code from a website. Only use joblib files YOU have trained
+    or independently trust, since loading joblib has pickle semantics.
+    """
+    destination = Path(folder)
+    required = json.loads(
+        (destination / "ordered_original_feature_columns.json").read_text(encoding="utf-8"))
+    provided = json.loads(Path(input_json).read_text(encoding="utf-8"))
+    if not isinstance(provided, dict) or set(provided) != set(required):
+        raise ValueError("Expected exactly 30 original UCI website attribute names")
+    frame = pd.DataFrame([provided], columns=required)
+    try:
+        numeric = frame.apply(pd.to_numeric, errors="raise")
+    except (TypeError, ValueError) as exc:
+        raise ValueError("All 30 required website features must be numeric") from exc
+    if numeric.isna().any().any() or not numeric.isin([-1, 0, 1]).all().all():
+        raise ValueError("Every published UCI feature must be exactly -1, 0, or 1")
+    model = joblib.load(destination / "selected_uci_phishing_model.joblib")
+    classes = list(model.classes_)
+    if set(classes) != {0, 1}:
+        raise ValueError("Unknown model label mapping; 1 must represent phishing")
+    probability = float(model.predict_proba(numeric)[:, classes.index(1)][0])
+    if not np.isfinite(probability) or not 0 <= probability <= 1:
+        raise ValueError("The loaded classifier returned invalid probabilities")
+    return {
+        "phishing_probability": probability,
+        "historical_dataset_study_flag_at_0_5": bool(probability >= 0.5),
+        "input": "preextracted UCI Phishing Websites 30 integer-coded site features",
+        "not_a_live_website_scanner": True,
+        "not_an_intrusion_blocker": True,
+        "warning": "Historical 2012 classifier; no independent current phishing-site validation",
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default="results/real_uci_phishing")
+    parser.add_argument("--predict-features-json",
+                        help="Score only an already-extracted JSON object with all 30 original UCI website features")
     args = parser.parse_args()
-    run(args.output)
+    if args.predict_features_json:
+        print(json.dumps(score_preextracted_website_features(
+            args.predict_features_json, args.output), indent=2))
+    else:
+        run(args.output)
 
 
 if __name__ == "__main__":
