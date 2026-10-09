@@ -1,3 +1,19 @@
+# Real-source NLP and offline RL status (current)
+
+**The previous generated RL rewards, dummy DQN file and synthetic classification features have been removed from training.**
+
+This repository now contains a reproducible **real-message SMS spam/ham classification baseline** using the [UCI SMS Spam Collection](https://archive.ics.uci.edu/dataset/228/sms+spam+collection), Almeida & Hidalgo (2011), DOI 10.24432/C5CC84; **CC BY 4.0**.
+
+```sh
+pip install -r requirements.txt pandas requests
+python src/train_nlp.py --output-dir models
+python src/evaluate.py --metrics models/nlp_metrics.json
+```
+
+The source ZIP is downloaded on execution (not committed). Reported performance comes from actual held-out SMS examples and includes a source URL. **SMS spam classification is not equivalent to phishing detection, malware detection, BERT training or reinforcement learning.** The `train_rl.py` entry point deliberately refuses to invent learning outcomes: authentic, permitted defense logs and a validated offline evaluation design are required first. Historical research claims and metrics in the older sections below have not been reproduced.
+
+---
+
 > **Current implementation status (October 2026): prototype, not trained DQN/PPO/BERT.** The checked-in `src/train_rl.py` generates random reward numbers and writes a dummy model file; `src/train_nlp.py` trains scikit-learn logistic regression on synthetic classification data. The research performance figures below are **not independently reproduced by this code**. Do not describe them as verified experimental results. The CI workflow checks this prototype only.
 
 
