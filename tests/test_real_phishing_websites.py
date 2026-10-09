@@ -5,7 +5,7 @@ import pytest
 
 from src.real_phishing_websites import (
     split_unique_feature_patterns, summarize_real_labels,
-    validate_published_phishing_data,
+    validate_published_phishing_data, score_preextracted_website_features,
 )
 
 
@@ -47,3 +47,28 @@ def test_confusion_and_precision_recall_are_calculated_from_actual_inputs():
     assert result["recall_phishing"] == pytest.approx(2/3)
     assert 0 < result["average_precision"] < 1
     assert 0 < result["roc_auc"] < 1
+
+
+def test_local_phishing_model_inference_accepts_only_original_30_attributes(tmp_path):
+    """Fixture model tests loader and input contract only; no real-site claim."""
+    import json
+    import joblib
+    from sklearn.dummy import DummyClassifier
+    cols = [f"published_feature_{i}" for i in range(30)]
+    (tmp_path / "ordered_original_feature_columns.json").write_text(json.dumps(cols))
+    train = pd.DataFrame(np.zeros((4,30)), columns=cols)
+    model = DummyClassifier(strategy="prior")
+    model.fit(train, [0,1,0,1])
+    joblib.dump(model, tmp_path / "selected_uci_phishing_model.joblib")
+    valid = tmp_path / "original_attributes.json"
+    valid.write_text(json.dumps({name: -1 if i % 2 == 0 else 1 for i,name in enumerate(cols)}))
+    result = score_preextracted_website_features(str(valid), str(tmp_path))
+    assert result["phishing_probability"] == pytest.approx(.5)
+    assert result["historical_dataset_study_flag_at_0_5"] is True
+    assert result["not_a_live_website_scanner"]
+    valid.write_text(json.dumps({cols[0]: 1}))
+    with pytest.raises(ValueError, match="exactly 30"):
+        score_preextracted_website_features(str(valid), str(tmp_path))
+    valid.write_text(json.dumps({name: (4 if i == 2 else 1) for i,name in enumerate(cols)}))
+    with pytest.raises(ValueError, match="exactly -1, 0, or 1"):
+        score_preextracted_website_features(str(valid), str(tmp_path))
