@@ -1,27 +1,23 @@
-name: CI - Adaptive Cyber Defense (prototype validation)
+name: Real UCI SMS NLP baseline
 on:
   push:
   pull_request:
   workflow_dispatch:
 jobs:
-  smoke:
+  real-nlp:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest
-      - name: Run smoke tests
+      - name: Install requirements
+        run: pip install -r requirements.txt pandas requests pytest
+      - name: Test imports and basic input contracts
         run: python -m pytest -q tests/test_smoke.py
-      - name: Run documented prototype
+      - name: Download actual UCI corpus and train NLP baseline
+        run: python src/train_nlp.py --output-dir models
+      - name: Validate original dataset provenance and heldout results
         run: |
-          python src/train_nlp.py --epochs 1
-          python src/train_rl.py --config configs/dqn.yaml
-          python src/evaluate.py
-      - name: Validate prototype report
-        run: |
-          python -c "import json; r=json.load(open('results/report.json')); assert r['rl_episodes'] > 0; assert 0 <= r['nlp_f1'] <= 1"
+          python src/evaluate.py --metrics models/nlp_metrics.json
+          python -c "import json; m=json.load(open('models/nlp_metrics.json')); assert m['n_deduplicated']>5000 and m['n_test']>800 and 0<=m['heldout_spam_f1']<=1 and 'archive.ics.uci.edu' in m['source']"
