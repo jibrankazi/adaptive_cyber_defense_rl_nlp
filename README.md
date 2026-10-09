@@ -1,3 +1,5 @@
+> **Current implementation status (October 2026): prototype, not trained DQN/PPO/BERT.** The checked-in `src/train_rl.py` generates random reward numbers and writes a dummy model file; `src/train_nlp.py` trains scikit-learn logistic regression on synthetic classification data. The research performance figures below are **not independently reproduced by this code**. Do not describe them as verified experimental results. The CI workflow checks this prototype only.
+
 
 (https://github.com/jibrankazi/adaptive_cyber_defense_rl_nlp/actions/workflows/ci-adaptive.yml/badge.svg)
 ## Research Summary (PhD Portfolio)
