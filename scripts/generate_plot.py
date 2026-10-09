@@ -1,24 +1,56 @@
+"""Plot *actual evaluated* UCI SMS label-derived review costs, not fake RL results.
+
+The original script drew invented '72% attack reduction' curves with random
+episode numbers. It must never be mistaken for evaluated cyber attack data.
+"""
+import argparse
+import json
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
-import os
 
-RESULTS_DIR = os.path.dirname(os.path.dirname(__file__)) + "/results"
-PLOT_PATH = f"{RESULTS_DIR}/attack_reduction.png"
 
-# Sample data: 72% reduction
-episodes = np.arange(0, 2001, 100)
-baseline_rate = np.full_like(episodes, 0.50)
-rl_rate = 0.50 * np.exp(-episodes / 500)  # → ~7.8%
+def plot_actual_scenario_costs(metrics, destination):
+    payload = json.loads(Path(metrics).read_text(encoding="utf-8"))
+    if payload.get("data_source") != "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip":
+        raise ValueError("Only actual original UCI SMS review reports supported")
+    scenarios = payload.get("untouched_test", {}).get("policy_comparisons", {})
+    keys = [
+        "allow_all", "review_all",
+        "fixed_probability_0_5", "selected_on_validation_only",
+    ]
+    if set(scenarios) != set(keys):
+        raise ValueError("Expected four empirically evaluated comparison decisions")
+    names = [
+        "Allow every message",
+        "Review every message",
+        "Model, threshold = 0.50",
+        "Model, threshold tuned on validation",
+    ]
+    values = [scenarios[key]["assumed_cost_units"] for key in keys]
+    if any(not isinstance(value, int) or value < 0 for value in values):
+        raise ValueError("Expected actual heldout-label-derived nonnegative cost units")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    bars = ax.bar(names, values)
+    ax.bar_label(bars, padding=4)
+    ax.set(
+        title="UCI historical SMS test labels: ASSUMED triage-review cost units",
+        ylabel="Assumed total error cost (lower is better; NOT real money)",
+    )
+    ax.tick_params(axis="x", labelrotation=15)
+    fig.tight_layout()
+    target = Path(destination)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(target, dpi=150)
+    plt.close(fig)
+    print(f"Saved real-label-derived scenario comparison to {target}")
 
-plt.figure(figsize=(10, 6))
-plt.plot(episodes, rl_rate * 100, label='DQN/PPO RL Agent (72% Reduction)', color='#1f77b4', linewidth=2.5)
-plt.plot(episodes, baseline_rate * 100, label='Static Baseline', color='#d62728', linestyle='--', linewidth=2)
-plt.xlabel('Training Episodes')
-plt.ylabel('Attack Success Rate (%)')
-plt.title('Adaptive Cyber Defense: RL vs. Baseline Attack Reduction')
-plt.legend(frameon=True, fancybox=True, shadow=True)
-plt.grid(True, alpha=0.3)
-plt.ylim(0, 60)
-plt.tight_layout()
-plt.savefig(PLOT_PATH, dpi=300, bbox_inches='tight')
-print(f"Plot saved: {PLOT_PATH}")
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--metrics", default="results/real_uci_sms_triage/verified_results.json")
+    p.add_argument("--output", default="results/real_uci_sms_triage/heldout_assumed_review_costs.png")
+    args = p.parse_args()
+    plot_actual_scenario_costs(args.metrics, args.output)
