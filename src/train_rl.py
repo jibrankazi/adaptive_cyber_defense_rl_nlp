@@ -1,19 +1,21 @@
-# src/train_rl.py
-import json, os, time, argparse, random
+"""RL training is deliberately disabled until real logged defense trajectories exist.
 
-def main(config_path: str = "configs/dqn.yaml"):
-    os.makedirs("models", exist_ok=True)
-    random.seed(1337)
-    rewards = [random.uniform(50, 100) for _ in range(10)]
-    time.sleep(0.1)
-    json.dump({"mean_reward": sum(rewards)/len(rewards), "episodes": len(rewards)},
-              open("models/rl_metrics.json", "w"))
-    open("models/dqn.pkl", "w").write("DUMMY_RL_MODEL")
-    print("RL training (stub) complete. mean_reward=", sum(rewards)/len(rewards))
+No synthetic attack episodes or placeholder reward values are generated.
+Training requires action, state, outcome and intervention cost trajectories
+plus a separately reviewed offline RL evaluation protocol.
+"""
+import argparse
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--trajectories", required=True, help="Real, authorized, anonymized defense decision logs")
+    args = p.parse_args()
+    raise NotImplementedError(
+        "Offline RL on documented real defense trajectories is NOT implemented. "
+        "No model or performance metric has been generated."
+    )
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", default="configs/dqn.yaml")
-    args = parser.parse_args()
-    main(args.config)
-
+    main()
