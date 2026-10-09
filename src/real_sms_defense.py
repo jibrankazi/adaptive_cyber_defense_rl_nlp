@@ -65,7 +65,10 @@ def parse_uci_bytes(raw: bytes) -> pd.DataFrame:
     conflicts = df.groupby("message")["label"].nunique()
     if (conflicts > 1).any():
         raise ValueError("Same public SMS text occurs under different target labels")
+    original_count = len(df)
     df = df.drop_duplicates(subset=["message"], keep="first").reset_index(drop=True)
+    df.attrs["original_publisher_line_count"] = original_count
+    df.attrs["source_duplicate_text_removed"] = original_count - len(df)
     if len(df) < 5000:
         raise ValueError("Too few original unique SMS messages")
     return df
@@ -199,9 +202,10 @@ def run(output_dir="results/real_uci_sms_triage"):
         "citation": CITATION,
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "publisher_zip_bytes_sha256": source_hash,
+        "original_publisher_message_line_count": int(df.attrs["original_publisher_line_count"]),
         "deduplicated_original_message_count": int(len(df)),
         "deduplicated_original_spam_count": int(labels.sum()),
-        "duplicate_messages_removed_before_split": None,
+        "duplicate_messages_removed_before_split": int(df.attrs["source_duplicate_text_removed"]),
         "split": {
             "seed": 42, "strategy": "stratified 60/20/20 on unique original messages",
             "train": int(len(train)), "validation": int(len(valid)), "test": int(len(test)),
@@ -233,8 +237,7 @@ def run(output_dir="results/real_uci_sms_triage"):
             "to other years. No RL or sequential defense trajectories were trained."
         ),
     }
-    # Never package public SMS bodies as model-inference evidence.
-    policy["duplicate_messages_removed_before_split"] = None
+    # Never package raw SMS message bodies as inference or evidence artifacts.
     (output / "verified_results.json").write_text(
         json.dumps(policy, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     joblib.dump(model, output / "uci_sms_review_model.joblib")
