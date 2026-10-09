@@ -1,12 +1,23 @@
-import json, os
-os.makedirs("results", exist_ok=True)
+"""Read genuine NLP evaluation metrics; do not invent RL performance."""
+import json
+import argparse
+from pathlib import Path
 
-def read_json(p, default):
-    try: return json.load(open(p))
-    except Exception: return default
 
-rl  = read_json("models/rl_metrics.json", {"mean_reward": None, "episodes": 0})
-nlp = read_json("models/nlp_metrics.json", {"f1": None})
-report = {"rl_mean_reward": rl["mean_reward"], "rl_episodes": rl["episodes"], "nlp_f1": nlp["f1"]}
-json.dump(report, open("results/report.json","w"), indent=2)
-print("Evaluation report written → results/report.json:", report)
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--metrics", default="models/nlp_metrics.json")
+    args = p.parse_args()
+    metrics = json.loads(Path(args.metrics).read_text(encoding="utf-8"))
+    if "source" not in metrics or "heldout_spam_f1" not in metrics:
+        raise ValueError("Expected provenance-backed real NLP evaluation report")
+    print(json.dumps({
+        "source": metrics["source"],
+        "task": metrics["task"],
+        "heldout_spam_f1": metrics["heldout_spam_f1"],
+        "rl_result": "UNAVAILABLE - real defense trajectories and model not implemented",
+    }, indent=2))
+
+
+if __name__ == "__main__":
+    main()
