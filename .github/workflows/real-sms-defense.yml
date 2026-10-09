@@ -1,0 +1,87 @@
+name: Real UCI SMS NLP and heldout defensive message review
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/real_sms_defense.py"
+      - "tests/test_real_sms_defense.py"
+      - ".github/workflows/real-sms-defense.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-publisher-message-triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install text classification and provenance dependencies
+        run: python -m pip install "numpy<3" pandas scikit-learn requests joblib matplotlib pytest
+      - name: Execute contract tests, leakage checks, cost-policy verification
+        run: python -m pytest -q tests/test_real_sms_defense.py tests/test_smoke.py
+      - name: Download actual UCI SMS corpus, fit NLP, select validation policy and evaluate untouched test
+        run: python -u -m src.real_sms_defense
+      - name: Independently recalculate saved real heldout scores and verify model
+        run: |
+          python - <<'PY'
+          import json, hashlib, math
+          from pathlib import Path
+          import numpy as np
+          import pandas as pd
+          from sklearn.metrics import average_precision_score, roc_auc_score
+          from src.real_sms_defense import confusion_cost
+
+          root = Path("results/real_uci_sms_triage")
+          results = json.loads((root / "verified_results.json").read_text())
+          observed = pd.read_csv(root / "heldout_observed_sms_scores.csv")
+          part = results["split"]
+          assert results["data_source"] == "https://archive.ics.uci.edu/static/public/228/sms%2Bspam%2Bcollection.zip"
+          assert len(results["publisher_zip_bytes_sha256"]) == 64
+          assert results["deduplicated_original_message_count"] > 5000
+          assert results["deduplicated_original_spam_count"] > 600
+          assert part["train"] + part["validation"] + part["test"] == results["deduplicated_original_message_count"]
+          assert len(observed) == part["test"] > 900
+          assert observed["deduplicated_original_source_row_index"].is_unique
+          assert observed["original_uci_label_spam_1"].sum() == part["test_spam"]
+          assert observed["trained_model_spam_probability"].notna().all()
+          assert observed["trained_model_spam_probability"].between(0,1).all()
+          assert results["cost_assumptions"]["units"].startswith("arbitrary")
+          assert "No RL" in results["risk_boundaries"]
+          truth = observed["original_uci_label_spam_1"].to_numpy()
+          prob = observed["trained_model_spam_probability"].to_numpy()
+          expected = results["untouched_test"]
+          assert math.isclose(average_precision_score(truth, prob), expected["average_precision"], rel_tol=1e-12)
+          assert math.isclose(roc_auc_score(truth, prob), expected["roc_auc"], rel_tol=1e-12)
+          thresholds = {
+              "allow_all": 1.01,
+              "review_all": 0.0,
+              "fixed_probability_0_5": 0.5,
+              "selected_on_validation_only": results["threshold_choice"]["selected"]["threshold"],
+          }
+          for name, threshold in thresholds.items():
+              recalculated = confusion_cost(truth, prob, threshold)
+              assert recalculated == expected["policy_comparisons"][name]
+              assert (recalculated["true_ham_allow"] + recalculated["false_ham_review"] +
+                      recalculated["missed_spam_allow"] + recalculated["true_spam_review"]) == part["test"]
+          threshold = float(thresholds["selected_on_validation_only"])
+          assert np.array_equal(observed["validation_selected_review"].to_numpy(),
+                                (prob >= threshold).astype(int))
+          assert (root / "heldout_precision_recall.png").read_bytes()[:8] == bytes.fromhex("89504e470d0a1a0a")
+          assert (root / "uci_sms_review_model.joblib").stat().st_size > 15000
+          print("PASSED: actual UCI original-source provenance, original heldout spam labels, independently reconstructed all four triage policies, all real metrics and model/chart artifacts")
+          PY
+      - name: Score previously unseen live example text with trained local model
+        run: |
+          python -m src.real_sms_defense --predict-text "Reminder: your meeting is tomorrow at 9."
+          python -m src.real_sms_defense --predict-text "Claim your prize by texting now, limited time."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: original-uci-sms-spam-validated-triage-model-and-actual-results
+          path: results/real_uci_sms_triage/
+          if-no-files-found: error
